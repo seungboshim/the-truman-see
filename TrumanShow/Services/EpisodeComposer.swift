@@ -1,0 +1,99 @@
+import Foundation
+import SwiftData
+import CoreGraphics
+
+/// 하루 데이터 → 에피소드 파이프라인 글루.
+/// 사진 수집 → 온디바이스 캡셔닝 → 타임라인 → 프롬프트 → 내레이터 → SwiftData 저장.
+@MainActor
+enum EpisodeComposer {
+
+    enum ComposeError: Error { case photoAccessDenied }
+
+    /// 해당 날짜의 에피소드를 생성해 저장한다. 이미 있으면 지우고 다시 만든다(테스트 편의, 멱등).
+    @discardableResult
+    static func compose(day: Date = Date(), protagonist: String,
+                        narrator: Narrator, context: ModelContext) async throws -> Episode {
+        guard PhotoCollector.authorizationStatus == .authorized
+                || PhotoCollector.authorizationStatus == .limited else {
+            throw ComposeError.photoAccessDenied
+        }
+
+        // 1. 수집 + 캡셔닝
+        let photos = PhotoCollector.photos(on: day)
+        let captioner = CaptionerFactory.make()
+        var items: [TimelineItem] = []
+        for photo in photos {
+            // 캡셔닝엔 512px이면 충분 — 원본 로드 낭비 방지
+            guard let cg = await PhotoCollector.image(for: photo.assetID,
+                                                      targetSize: .init(width: 512, height: 512))?.cgImage
+            else { continue }
+            let caption = (try? await captioner.caption(cg)) ?? "(분석 실패)"
+            let neighborhood: String? = if let coord = photo.coordinate {
+                await NeighborhoodResolver.neighborhood(for: coord)
+            } else { nil }
+            items.append(TimelineItem(timeText: Self.timeText(photo.capturedAt),
+                                      neighborhood: neighborhood,
+                                      caption: caption,
+                                      castLabels: []))  // 얼굴 수는 캡션에 포함. 개별 인물은 v2
+        }
+
+        // 2. 프롬프트 → 내레이션
+        let number = nextEpisodeNumber(context: context)
+        let ctx = DayContext(protagonistName: protagonist,
+                             episodeCode: String(format: "S01E%02d", number),
+                             dateText: Self.dateText(day),
+                             items: items)
+        let draft = try await narrator.generate(EpisodePromptBuilder.build(ctx))
+
+        // 3. 저장 (같은 날 기존 에피소드는 교체)
+        let dayStart = Calendar.current.startOfDay(for: day)
+        try deleteExisting(airDate: dayStart, context: context)
+
+        let episode = Episode(episode: number, airDate: dayStart, title: draft.title,
+                              synopsis: draft.synopsis, viewerRating: draft.viewerRating,
+                              viewerComments: draft.viewerComments,
+                              isBroadcastAccident: items.isEmpty)
+        context.insert(episode)
+        for (i, scene) in draft.scenes.enumerated() {
+            // 정상 에피소드는 장면=사진 1:1 (프롬프트 계약). 방송사고는 사진 없음.
+            let src: TimelineItem? = items.indices.contains(i) ? items[i] : nil
+            let photo: DayPhoto? = photos.indices.contains(i) ? photos[i] : nil
+            let s = EpisodeScene(order: i, narration: scene.narration,
+                                 capturedAt: photo?.capturedAt,
+                                 locationName: src?.neighborhood,
+                                 photoAssetID: photo?.assetID,
+                                 observedText: src?.caption)   // 투명성: 실제 전송 텍스트
+            s.episode = episode
+            context.insert(s)
+        }
+        try context.save()
+        return episode
+    }
+
+    // MARK: - 헬퍼
+
+    static func nextEpisodeNumber(context: ModelContext) -> Int {
+        let all = (try? context.fetch(FetchDescriptor<Episode>())) ?? []
+        return (all.map(\.episode).max() ?? 0) + 1
+    }
+
+    private static func deleteExisting(airDate: Date, context: ModelContext) throws {
+        let existing = try context.fetch(FetchDescriptor<Episode>(
+            predicate: #Predicate { $0.airDate == airDate }))
+        existing.forEach { context.delete($0) }
+    }
+
+    static func timeText(_ date: Date) -> String {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "ko_KR")
+        f.dateFormat = "a h시 m분"
+        return f.string(from: date)
+    }
+
+    static func dateText(_ date: Date) -> String {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "ko_KR")
+        f.dateFormat = "yyyy년 M월 d일 EEEE"
+        return f.string(from: date)
+    }
+}
