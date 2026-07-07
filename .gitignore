@@ -1,0 +1,14 @@
+# macOS
+.DS_Store
+
+# Xcode
+DerivedData/
+build/
+*.xcuserstate
+xcuserdata/
+*.xcscmblueprint
+*.xccheckout
+
+# XcodeGen generates the project from project.yml.
+# Regenerate anytime with `xcodegen generate`.
+*.xcodeproj

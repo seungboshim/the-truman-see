@@ -1,0 +1,46 @@
+name: TrumanShow
+options:
+  bundleIdPrefix: com.iconx
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    GENERATE_INFOPLIST_FILE: NO
+    CODE_SIGN_STYLE: Automatic
+    TARGETED_DEVICE_FAMILY: "1" # iPhone only
+
+targets:
+  TrumanShow:
+    type: application
+    platform: iOS
+    sources:
+      - path: TrumanShow
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.iconx.trumanshow
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+    info:
+      path: TrumanShow/Info.plist
+      properties:
+        CFBundleDisplayName: 관찰카메라
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        # iOS purpose strings: 심사 기준에 맞게 건조·사실적으로 작성 (PD 톤 카피는 커스텀 프리퍼미션 화면에서만)
+        NSPhotoLibraryUsageDescription: "오늘 촬영한 사진을 분석해 하루를 요약한 에피소드를 만드는 데 사용합니다. 사진 원본은 기기 안에서만 처리되며 외부로 전송되지 않습니다."
+        NSLocationWhenInUseUsageDescription: "방문한 장소를 동네 단위로 기록해 하루 요약에 반영하는 데 사용합니다."
+        NSLocationAlwaysAndWhenInUseUsageDescription: "앱을 사용하지 않을 때도 방문한 장소를 동네 단위로 기록해 하루 요약에 반영하는 데 사용합니다."
+
+schemes:
+  TrumanShow:
+    build:
+      targets:
+        TrumanShow: all
+    run:
+      config: Debug
