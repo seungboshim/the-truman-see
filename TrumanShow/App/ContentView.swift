@@ -40,6 +40,12 @@ struct ContentView: View {
                     ToolbarItem(placement: .primaryAction) { generateButton }
                 }
             }
+            .task {
+                // QA: 시뮬레이터에서 탭 없이 생성 경로 실행 (simctl launch ... -autoGenerate)
+                if ProcessInfo.processInfo.arguments.contains("-autoGenerate") {
+                    await generate()
+                }
+            }
             .alert("방송 사고", isPresented: .constant(errorMessage != nil)) {
                 Button("확인") { errorMessage = nil }
             } message: {
