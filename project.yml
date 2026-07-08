@@ -12,6 +12,7 @@ settings:
     CURRENT_PROJECT_VERSION: "1"
     GENERATE_INFOPLIST_FILE: NO
     CODE_SIGN_STYLE: Automatic
+    DEVELOPMENT_TEAM: T5RP2CSNDU # fodo9898@gmail.com Personal Team (인증서 OU 기준 — CN 괄호 코드는 팀 ID 아님)
     TARGETED_DEVICE_FAMILY: "1" # iPhone only
 
 targets:

@@ -14,12 +14,16 @@ struct OnboardingView: View {
     var body: some View {
         VStack(spacing: 24) {
             Spacer()
-            switch step {
-            case .casting: casting
-            case .cameraContract: cameraContract
+            Group {
+                switch step {
+                case .casting: casting
+                case .cameraContract: cameraContract
+                }
             }
+            .transition(.push(from: .trailing))
             Spacer()
         }
+        .animation(.easeInOut(duration: 0.35), value: step)
         .padding(28)
         .background(Color.black.ignoresSafeArea())
         .preferredColorScheme(.dark)

@@ -7,11 +7,14 @@ struct TrumanShowApp: App {
 
     var body: some Scene {
         WindowGroup {
-            if onboarded {
-                ContentView()
-            } else {
-                OnboardingView()
+            Group {
+                if onboarded {
+                    ContentView().transition(.opacity)
+                } else {
+                    OnboardingView().transition(.opacity)
+                }
             }
+            .animation(.easeInOut(duration: 0.4), value: onboarded)
         }
         .modelContainer(for: [Episode.self, EpisodeScene.self, CastMember.self])
     }
