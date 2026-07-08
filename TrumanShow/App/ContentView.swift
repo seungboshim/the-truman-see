@@ -29,7 +29,7 @@ struct ContentView: View {
                     }
                 }
             }
-            .navigationTitle("관찰카메라")
+            .navigationTitle("트루먼씨")
             .navigationDestination(for: UUID.self) { id in
                 if let episode = episodes.first(where: { $0.id == id }) {
                     EpisodeView(episode: episode)

@@ -29,7 +29,7 @@ targets:
     info:
       path: TrumanShow/Info.plist
       properties:
-        CFBundleDisplayName: 관찰카메라
+        CFBundleDisplayName: 트루먼씨
         UILaunchScreen: {}
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
