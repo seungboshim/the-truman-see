@@ -10,6 +10,12 @@ enum FaceMatcher {
     /// ponytail: 초기 임계값. [Face] distance 로그 보고 실측 튜닝
     static var threshold: Float = 0.75
 
+    /// 자동 주인공 판별 스위치. 기본 OFF — feature print는 얼굴 정체성을 못 잡아 오탐(타인=주인공)이 남.
+    /// 셀카 등록·매칭 코드는 유지(휴면), v2에서 얼굴 임베딩 CoreML 모델로 교체 후 ON.
+    static var detectionEnabled: Bool {
+        UserDefaults.standard.bool(forKey: "protagonistDetection")
+    }
+
     static var hasReference: Bool {
         UserDefaults.standard.data(forKey: referenceKey) != nil
     }

@@ -75,10 +75,12 @@ enum EpisodeComposer {
             var castLabels: [String] = []
             let faceCount = caption.firstMatch(of: /인물 (\d+)명/).flatMap { Int($0.1) } ?? 0
             if faceCount > 0 && !photo.isScreenshot {
-                if FaceMatcher.hasReference, FaceMatcher.containsProtagonist(cg) {
+                if FaceMatcher.detectionEnabled, FaceMatcher.hasReference,
+                   FaceMatcher.containsProtagonist(cg) {
                     castLabels.append("주인공 본인 등장")
                     if faceCount > 1 { castLabels.append("이름 모를 출연자 \(faceCount - 1)명") }
                 } else {
+                    // 기본: 카메라 뒤 가정 — 프레임 속 인물은 전부 출연진
                     castLabels.append("이름 모를 출연자 \(faceCount)명")
                 }
             }
