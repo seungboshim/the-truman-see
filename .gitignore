@@ -14,4 +14,4 @@ xcuserdata/
 *.xcodeproj
 
 # API 키 — 절대 커밋 금지 (프로덕션은 프록시 경유)
-TrumanShow/Secrets.swift
+TrumanSee/Secrets.swift

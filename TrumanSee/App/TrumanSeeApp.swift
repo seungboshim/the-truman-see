@@ -2,7 +2,7 @@ import SwiftUI
 import SwiftData
 
 @main
-struct TrumanShowApp: App {
+struct TrumanSeeApp: App {
     @AppStorage("onboarded") private var onboarded = false
 
     var body: some Scene {
