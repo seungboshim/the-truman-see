@@ -31,7 +31,7 @@ enum EpisodeComposer {
     static func compose(day: Date = Date(), protagonist: String,
                         narrator: Narrator, context: ModelContext,
                         onProgress: @escaping (String) -> Void = { _ in }) async throws -> Episode {
-        func stage(_ msg: String) { print("[Composer] \(msg)"); onProgress(msg) }
+        func stage(_ msg: String) { DebugLog.log("[Composer] \(msg)"); onProgress(msg) }
 
         guard PhotoCollector.authorizationStatus == .authorized
                 || PhotoCollector.authorizationStatus == .limited else {
@@ -81,7 +81,7 @@ enum EpisodeComposer {
                     castLabels.append("이름 모를 출연자 \(faceCount)명")
                 }
             }
-            print("[Caption] \(i + 1)/\(photos.count) \(Self.timeText(photo.capturedAt)) → \(caption)")
+            DebugLog.log("[Caption] \(i + 1)/\(photos.count) \(Self.timeText(photo.capturedAt)) → \(caption) | 출연: \(castLabels.joined(separator: ","))")
             items.append(TimelineItem(timeText: Self.timeText(photo.capturedAt),
                                       neighborhood: neighborhood,
                                       caption: caption,

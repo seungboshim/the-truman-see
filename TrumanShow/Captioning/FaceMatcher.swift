@@ -33,7 +33,7 @@ enum FaceMatcher {
         for fp in facePrints(in: image, largestOnly: false) {
             var distance: Float = .infinity
             try? fp.computeDistance(&distance, to: ref)
-            print("[Face] distance \(distance) (threshold \(threshold))")
+            DebugLog.log("[Face] distance \(distance) (threshold \(threshold))")
             if distance < threshold { return true }
         }
         return false
