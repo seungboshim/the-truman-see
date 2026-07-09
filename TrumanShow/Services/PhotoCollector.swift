@@ -9,6 +9,8 @@ struct DayPhoto: Identifiable, Equatable {
     let assetID: String            // PHAsset.localIdentifier
     let capturedAt: Date
     let coordinate: CLLocationCoordinate2D?
+    /// 스크린샷 여부 (PHAsset.mediaSubtypes). 주인공이 '찍은' 게 아니라 '본' 화면.
+    var isScreenshot: Bool = false
 
     static func == (lhs: DayPhoto, rhs: DayPhoto) -> Bool { lhs.assetID == rhs.assetID }
 }
@@ -46,7 +48,8 @@ enum PhotoCollector {
             guard let created = asset.creationDate else { return }
             photos.append(DayPhoto(assetID: asset.localIdentifier,
                                    capturedAt: created,
-                                   coordinate: asset.location?.coordinate))
+                                   coordinate: asset.location?.coordinate,
+                                   isScreenshot: asset.mediaSubtypes.contains(.photoScreenshot)))
         }
         return photos
     }

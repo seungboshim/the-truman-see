@@ -57,7 +57,7 @@ enum EpisodeComposer {
             guard let cg = await PhotoCollector.image(for: photo.assetID,
                                                       targetSize: .init(width: 512, height: 512))?.cgImage
             else { stage("장면 \(i + 1) 이미지 로드 실패 — 건너뜀"); continue }
-            let caption = (try? await captioner.caption(cg)) ?? "(분석 실패)"
+            let caption = (try? await captioner.caption(cg, isScreenshot: photo.isScreenshot)) ?? "(분석 실패)"
             var neighborhood: String? = nil
             if let coord = photo.coordinate {
                 // ~1km 그리드로 캐시. 같은 동네 사진 수십 장이 지오코딩 1회로 처리됨
@@ -70,10 +70,11 @@ enum EpisodeComposer {
                 }
             }
             // 셀카 레퍼런스가 있으면 얼굴 매칭으로 주인공 등장 판별, 없으면 "카메라 뒤" 가정
+            // 스크린샷 속 인물(TV·화면)은 실제 출연진이 아니므로 세지 않는다
             // ponytail: 캡션 문자열의 "인물 N명" 재파싱 — 캡셔너 구조화 필요해지면 프로토콜 확장
             var castLabels: [String] = []
             let faceCount = caption.firstMatch(of: /인물 (\d+)명/).flatMap { Int($0.1) } ?? 0
-            if faceCount > 0 {
+            if faceCount > 0 && !photo.isScreenshot {
                 if FaceMatcher.hasReference, FaceMatcher.containsProtagonist(cg) {
                     castLabels.append("주인공 본인 등장")
                     if faceCount > 1 { castLabels.append("이름 모를 출연자 \(faceCount - 1)명") }
@@ -85,7 +86,8 @@ enum EpisodeComposer {
             items.append(TimelineItem(timeText: Self.timeText(photo.capturedAt),
                                       neighborhood: neighborhood,
                                       caption: caption,
-                                      castLabels: castLabels))
+                                      castLabels: castLabels,
+                                      isScreenshot: photo.isScreenshot))
         }
 
         // 2. 프롬프트 → 내레이션

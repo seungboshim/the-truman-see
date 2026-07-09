@@ -12,12 +12,16 @@ struct NvidiaCaptioner: PhotoCaptioner {
 
     struct CaptionError: Error { let message: String }
 
-    func caption(_ image: CGImage) async throws -> String {
+    func caption(_ image: CGImage, isScreenshot: Bool = false) async throws -> String {
         guard let jpeg = UIImage(cgImage: image).jpegData(compressionQuality: 0.6) else {
             throw CaptionError(message: "jpeg 인코딩 실패")
         }
         let b64 = jpeg.base64EncodedString()
-        let prompt = """
+        let prompt = isScreenshot ? """
+        이 이미지는 휴대폰/컴퓨터 화면 스크린샷이다. 화면에 무엇이 표시되고 있는지 한국어로 1~2문장으로 설명해줘. \
+        (예: 축구 중계 화면, 메신저 대화, 쇼핑 앱 등) 촬영자가 그 장소에 있는 게 아니라 화면을 보고 있는 것이다. \
+        맨 앞에 '[화면 캡처]'를 붙여라. 화면 속 인물은 세지 마라.
+        """ : """
         이 사진에 보이는 것을 한국어로 1~2문장으로 구체적으로 묘사해줘. \
         장소·음식·사물·분위기 위주로. 추측성 이름이나 감정은 쓰지 말고 보이는 사실만. \
         사람이 있으면 마지막에 '인물 N명'을 덧붙여.

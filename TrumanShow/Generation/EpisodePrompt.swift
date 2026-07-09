@@ -15,6 +15,8 @@ struct TimelineItem {
     let caption: String?
     /// 이 순간의 출연진 라벨. 이름이 있으면 이름, 없으면 "이름 모를 조연" 등.
     let castLabels: [String]
+    /// 스크린샷 여부 — 주인공이 찍은 장면이 아니라 '보고 있던 화면'
+    var isScreenshot: Bool = false
 }
 
 /// 하루치 생성 컨텍스트.
@@ -60,6 +62,12 @@ enum EpisodePromptBuilder {
     - 그 외 장면에서 주인공의 표정·뒷모습·옷차림을 직접 봤다고 서술하지 마라 — 카메라 뒤라 보이지 않는다.
       대신 제작진의 능청스러운 추정으로 처리하라. (예: "표정은 잡히지 않았지만, 제작진은 그가 웃고 있었으리라 확신한다.")
 
+    [화면 캡처 규칙]
+    - '[📱 화면 캡처]' 표시가 있는 장면은 주인공이 찍은 사진이 아니라 휴대폰/TV 화면을 캡처한 것이다.
+      주인공이 그 장소에 갔다거나 화면 속 인물과 함께 있었다고 절대 서술하지 마라.
+      '주인공이 무언가를 보고 있었다'로 다뤄라 (예: 축구 중계를 보다, 메시지를 확인하다, 쇼핑하다).
+      (예: 코카콜라 전광판이 담긴 축구 중계 캡처 → "주인공은 소파에 누워 이집트전을 지켜봤다", 결코 "코카콜라 앞에 섰다"가 아니다.)
+
     [정서 규칙]
     - 사진에 인물이 없다고 주인공이 외롭다고 해석하지 마라. 주인공은 카메라 뒤에 있을 뿐이다.
       '고독', '외로움', '쓸쓸함' 같은 단어와 그 클리셰를 금지한다.
@@ -78,7 +86,8 @@ enum EpisodePromptBuilder {
             let loc = item.neighborhood.map { " · \($0)" } ?? ""
             let obs = item.caption ?? "(장면 정보 없음)"
             let cast = item.castLabels.isEmpty ? "" : " · 출연: \(item.castLabels.joined(separator: ", "))"
-            return "\(i + 1). \(item.timeText)\(loc)\(cast)\n   관찰: \(obs)"
+            let kind = item.isScreenshot ? " [📱 화면 캡처]" : ""
+            return "\(i + 1). \(item.timeText)\(loc)\(kind)\(cast)\n   관찰: \(obs)"
         }.joined(separator: "\n")
 
         return """

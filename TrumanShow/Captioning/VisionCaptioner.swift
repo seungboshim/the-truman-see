@@ -12,7 +12,7 @@ struct VisionCaptioner: PhotoCaptioner {
     var maxTags: Int = 7
     var maxOCRLength: Int = 80
 
-    func caption(_ image: CGImage) async throws -> String {
+    func caption(_ image: CGImage, isScreenshot: Bool = false) async throws -> String {
         let classify = VNClassifyImageRequest()
         let faces = VNDetectFaceRectanglesRequest()
         let animals = VNRecognizeAnimalsRequest()
@@ -49,6 +49,7 @@ struct VisionCaptioner: PhotoCaptioner {
         }()
 
         var parts: [String] = []
+        if isScreenshot { parts.append("[화면 캡처]") }
         if !tags.isEmpty { parts.append(tags.joined(separator: ", ")) }
         if faceCount > 0 { parts.append("인물 \(faceCount)명") }
         if let animalText { parts.append(animalText) }
