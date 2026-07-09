@@ -5,6 +5,11 @@ import SwiftData
 struct TrumanSeeApp: App {
     @AppStorage("onboarded") private var onboarded = false
 
+    init() {
+        // 이전에 위치 기록을 켰다면 재개 (백그라운드 relaunch 포함)
+        VisitTracker.shared.resumeIfEnabled()
+    }
+
     var body: some Scene {
         WindowGroup {
             Group {

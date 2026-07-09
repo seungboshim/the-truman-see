@@ -9,6 +9,14 @@ enum EpisodeComposer {
 
     enum ComposeError: Error { case photoAccessDenied }
 
+    /// 장면 하나의 모든 근거 (프롬프트용 item + 저장용 메타). 사진/방문 공통.
+    /// 장면↔사진을 인덱스 병렬 배열로 다루던 취약함을 제거 — 근거를 한 곳에 묶는다.
+    private struct SceneSource {
+        let date: Date
+        let item: TimelineItem
+        let photoAssetID: String?   // 방문(위치기록)은 nil
+    }
+
     /// 방송일: 새벽 4시까지는 전날 취급 (자정 직후 생성 시 "오늘 사진 0장" 방지)
     static func broadcastDay(now: Date = Date(), calendar: Calendar = .current) -> Date {
         calendar.date(byAdding: .hour, value: -4, to: now)!
@@ -49,7 +57,7 @@ enum EpisodeComposer {
         if photos.count > 12 { photos = Array(photos.prefix(12)) }
         stage("촬영분 \(allPhotos.count)장 중 \(photos.count)장면 선별")
         let captioner = CaptionerFactory.make()
-        var items: [TimelineItem] = []
+        var sources: [SceneSource] = []
         var geoCache: [String: String?] = [:]   // 근접 좌표 재사용 (CLGeocoder 스로틀 방지)
         for (i, photo) in photos.enumerated() {
             stage("장면 분석 중 \(i + 1)/\(photos.count)")
@@ -98,13 +106,30 @@ enum EpisodeComposer {
             if photo.isPanorama { tags.append("파노라마") }
 
             DebugLog.log("[Caption] \(i + 1)/\(photos.count) \(Self.timeText(photo.capturedAt)) → \(caption) | 출연: \(castLabels.joined(separator: ",")) | 태그: \(tags.joined(separator: ","))")
-            items.append(TimelineItem(timeText: Self.timeText(photo.capturedAt),
-                                      neighborhood: neighborhood,
-                                      caption: caption,
-                                      castLabels: castLabels,
-                                      isScreenshot: photo.isScreenshot,
-                                      tags: tags))
+            let item = TimelineItem(timeText: Self.timeText(photo.capturedAt),
+                                    neighborhood: neighborhood,
+                                    caption: caption,
+                                    castLabels: castLabels,
+                                    isScreenshot: photo.isScreenshot,
+                                    tags: tags)
+            sources.append(SceneSource(date: photo.capturedAt, item: item, photoAssetID: photo.assetID))
         }
+
+        // 1b. 사진 없는 시간대를 CLVisit 방문으로 채우기 (사진에 안 덮인 방문만)
+        for v in VisitTracker.visits(on: day) {
+            let covered = photos.contains { $0.capturedAt >= v.arrival && $0.capturedAt <= v.departure }
+            if covered { continue }
+            let hood = await NeighborhoodResolver.neighborhood(for: v.coordinate, timeout: 8)
+            let item = TimelineItem(timeText: Self.timeText(v.arrival),
+                                    neighborhood: hood,
+                                    caption: "(사진 없이 이 동네에 머무름)",
+                                    castLabels: [],
+                                    tags: ["위치기록"])
+            sources.append(SceneSource(date: v.arrival, item: item, photoAssetID: nil))
+            DebugLog.log("[Visit] \(Self.timeText(v.arrival)) \(hood ?? "?")")
+        }
+        sources.sort { $0.date < $1.date }
+        let items = sources.map(\.item)
 
         // 2. 프롬프트 → 내레이션
         stage("작가가 대본 집필 중… (온디바이스)")
@@ -128,18 +153,17 @@ enum EpisodeComposer {
         let episode = Episode(episode: number, airDate: dayStart, title: draft.title,
                               synopsis: draft.synopsis, viewerRating: draft.viewerRating,
                               viewerComments: draft.viewerComments,
-                              isBroadcastAccident: items.isEmpty)
+                              isBroadcastAccident: sources.isEmpty)
         episode.usedCloudVision = CaptionerFactory.vividModeEnabled
         context.insert(episode)
         for (i, scene) in draft.scenes.enumerated() {
-            // 정상 에피소드는 장면=사진 1:1 (프롬프트 계약). 방송사고는 사진 없음.
-            let src: TimelineItem? = items.indices.contains(i) ? items[i] : nil
-            let photo: DayPhoto? = photos.indices.contains(i) ? photos[i] : nil
+            // 장면=근거 1:1 (프롬프트 계약, 사진+방문 순서 유지). 방송사고는 근거 없음.
+            let src = sources.indices.contains(i) ? sources[i] : nil
             let s = EpisodeScene(order: i, narration: scene.narration,
-                                 capturedAt: photo?.capturedAt,
-                                 locationName: src?.neighborhood,
-                                 photoAssetID: photo?.assetID,
-                                 observedText: src?.caption)   // 투명성: 실제 전송 텍스트
+                                 capturedAt: src?.date,
+                                 locationName: src?.item.neighborhood,
+                                 photoAssetID: src?.photoAssetID,
+                                 observedText: src?.item.caption)   // 투명성: 실제 전송 텍스트
             s.episode = episode
             context.insert(s)
         }
