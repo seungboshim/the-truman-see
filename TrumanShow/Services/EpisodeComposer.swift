@@ -9,6 +9,11 @@ enum EpisodeComposer {
 
     enum ComposeError: Error { case photoAccessDenied }
 
+    /// 방송일: 새벽 4시까지는 전날 취급 (자정 직후 생성 시 "오늘 사진 0장" 방지)
+    static func broadcastDay(now: Date = Date(), calendar: Calendar = .current) -> Date {
+        calendar.date(byAdding: .hour, value: -4, to: now)!
+    }
+
     /// 해당 날짜의 에피소드를 생성해 저장한다. 이미 있으면 지우고 다시 만든다(테스트 편의, 멱등).
     /// onProgress: 단계별 상태 문자열 (UI 표시 + 디버깅용)
     @discardableResult
