@@ -1,15 +1,18 @@
 import SwiftUI
 import Photos
+import PhotosUI
 
-/// 온보딩: 캐스팅(이름) → 카메라 계약(사진 권한 프리퍼미션) → 방송 시작.
+/// 온보딩: 캐스팅(이름) → 프로필 촬영(셀카, 스킵 가능) → 카메라 계약(사진 권한 프리퍼미션).
 /// 시스템 팝업 전 커스텀 프리퍼미션 화면에만 PD 톤 카피 사용 (Info.plist는 건조체).
 struct OnboardingView: View {
     @AppStorage("protagonistName") private var protagonistName = ""
     @AppStorage("onboarded") private var onboarded = false
     @State private var step: Step = .casting
+    @State private var selfieItem: PhotosPickerItem?
+    @State private var selfieError: String?
     @FocusState private var nameFocused: Bool
 
-    enum Step { case casting, cameraContract }
+    enum Step { case casting, selfie, cameraContract }
 
     var body: some View {
         VStack(spacing: 24) {
@@ -17,6 +20,7 @@ struct OnboardingView: View {
             Group {
                 switch step {
                 case .casting: casting
+                case .selfie: selfie
                 case .cameraContract: cameraContract
                 }
             }
@@ -50,7 +54,7 @@ struct OnboardingView: View {
                 .onAppear { nameFocused = true }
 
             Button {
-                step = .cameraContract
+                step = .selfie
             } label: {
                 Text("계약서에 서명").frame(maxWidth: .infinity)
             }
@@ -60,7 +64,59 @@ struct OnboardingView: View {
         .foregroundStyle(.white)
     }
 
-    // MARK: 2. 카메라 계약 (사진 프리퍼미션)
+    // MARK: 2. 프로필 촬영 (셀카 등록, 스킵 가능)
+
+    private var selfie: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("프로필 촬영 📸")
+                .font(.largeTitle.bold())
+            Text("""
+            제작진이 화면 속에서 주인공을 알아볼 수 있도록,
+            얼굴이 잘 나온 사진 한 장을 등록해 주세요.
+
+            사진과 얼굴 정보는 기기 밖으로 나가지 않습니다.
+            건너뛰면 '주인공은 늘 카메라 뒤'라는 설정으로 진행합니다.
+            """)
+            .foregroundStyle(.secondary)
+
+            if let selfieError {
+                Text(selfieError).font(.footnote).foregroundStyle(.orange)
+            }
+
+            PhotosPicker(selection: $selfieItem, matching: .images) {
+                Text("사진 고르기").frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+
+            Button("건너뛰기 (주인공은 늘 카메라 뒤)") {
+                step = .cameraContract
+            }
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+        }
+        .foregroundStyle(.white)
+        .onChange(of: selfieItem) { _, item in
+            guard let item else { return }
+            Task {
+                // UIImage 재드로잉으로 EXIF 회전 정규화 (회전된 셀카에서 얼굴 감지 실패 방지)
+                if let data = try? await item.loadTransferable(type: Data.self),
+                   let ui = UIImage(data: data),
+                   let cg = normalized(ui),
+                   FaceMatcher.registerReference(from: cg) {
+                    step = .cameraContract
+                } else {
+                    selfieError = "제작진 메모: 이 사진에서는 얼굴을 찾지 못했습니다. 다른 사진으로 부탁드려요."
+                    selfieItem = nil
+                }
+            }
+        }
+    }
+
+    private func normalized(_ ui: UIImage) -> CGImage? {
+        UIGraphicsImageRenderer(size: ui.size).image { _ in ui.draw(at: .zero) }.cgImage
+    }
+
+    // MARK: 3. 카메라 계약 (사진 프리퍼미션)
 
     private var cameraContract: some View {
         VStack(alignment: .leading, spacing: 16) {

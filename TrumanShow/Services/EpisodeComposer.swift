@@ -69,11 +69,17 @@ enum EpisodeComposer {
                     geoCache[key] = neighborhood
                 }
             }
-            // ponytail: 캡션 문자열의 "인물 N명"을 출연진 라벨로 재파싱 — 사진 속 인물을
-            // 주인공으로 오인하는 것을 프롬프트 구조로 차단. 캡셔너 구조화 필요해지면 프로토콜 확장
+            // 셀카 레퍼런스가 있으면 얼굴 매칭으로 주인공 등장 판별, 없으면 "카메라 뒤" 가정
+            // ponytail: 캡션 문자열의 "인물 N명" 재파싱 — 캡셔너 구조화 필요해지면 프로토콜 확장
             var castLabels: [String] = []
-            if let m = caption.firstMatch(of: /인물 (\d+)명/) {
-                castLabels = ["이름 모를 출연자 \(m.1)명 (주인공 아님)"]
+            let faceCount = caption.firstMatch(of: /인물 (\d+)명/).flatMap { Int($0.1) } ?? 0
+            if faceCount > 0 {
+                if FaceMatcher.hasReference, FaceMatcher.containsProtagonist(cg) {
+                    castLabels.append("주인공 본인 등장")
+                    if faceCount > 1 { castLabels.append("이름 모를 출연자 \(faceCount - 1)명") }
+                } else {
+                    castLabels.append("이름 모를 출연자 \(faceCount)명")
+                }
             }
             print("[Caption] \(i + 1)/\(photos.count) \(Self.timeText(photo.capturedAt)) → \(caption)")
             items.append(TimelineItem(timeText: Self.timeText(photo.capturedAt),
