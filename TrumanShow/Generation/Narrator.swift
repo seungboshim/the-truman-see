@@ -12,6 +12,8 @@ protocol Narrator {
 enum NarratorError: Error {
     /// Apple Intelligence 미지원/비활성 기기. 호출부에서 클라우드 폴백 또는 안내.
     case onDeviceModelUnavailable
+    /// FM 가드레일 거부. 세계관 표현: 심의 반려.
+    case censored
 }
 
 /// Foundation Models 온디바이스 내레이터 (iOS 26+, Apple Intelligence 기기).
@@ -30,12 +32,20 @@ struct FMNarrator: Narrator {
     func generate(_ prompt: EpisodePrompt) async throws -> EpisodeDraft {
         #if canImport(FoundationModels)
         if #available(iOS 26.0, *) {
-            guard SystemLanguageModel.default.availability == .available else {
+            // 완화 가드레일: 사용자 본인 데이터의 각색(콘텐츠 변환)이 용도라 기본 가드레일이 과민함
+            // (실사례: 축구 세레모니 스샷의 Vision 태그가 기본 가드레일에 거부됨)
+            let model = SystemLanguageModel(guardrails: .permissiveContentTransformations)
+            guard model.availability == .available else {
                 throw NarratorError.onDeviceModelUnavailable
             }
-            let session = LanguageModelSession(instructions: prompt.system)
-            let response = try await session.respond(to: prompt.user)
-            return try EpisodeDraft.parse(from: response.content)
+            let session = LanguageModelSession(model: model, instructions: prompt.system)
+            do {
+                let response = try await session.respond(to: prompt.user)
+                return try EpisodeDraft.parse(from: response.content)
+            } catch let error as LanguageModelSession.GenerationError {
+                if case .guardrailViolation = error { throw NarratorError.censored }
+                throw error
+            }
         }
         #endif
         throw NarratorError.onDeviceModelUnavailable

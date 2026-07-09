@@ -112,6 +112,8 @@ struct ContentView: View {
                                               protagonist: protagonistName,
                                               narrator: FMNarrator(),
                                               context: modelContext) { progressText = $0 }
+        } catch NarratorError.censored {
+            errorMessage = "심의 반려 📺 오늘 촬영분 일부가 방송 심의를 통과하지 못했습니다. 제작진이 심의실에 항의 중입니다. 잠시 후 다시 시도해 주세요. — 제작진"
         } catch {
             errorMessage = "편집실에서 문제가 발생했습니다: \(error.localizedDescription) — 제작진"
         }
