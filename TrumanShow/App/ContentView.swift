@@ -108,7 +108,7 @@ struct ContentView: View {
                 errorMessage = "이 기기에서는 온디바이스 작가(Apple Intelligence)를 사용할 수 없습니다. 클라우드 작가는 곧 합류합니다. — 제작진"
                 return
             }
-            try await EpisodeComposer.compose(day: EpisodeComposer.broadcastDay(),
+            try await EpisodeComposer.compose(day: EpisodeComposer.latestDayWithPhotos(),
                                               protagonist: protagonistName,
                                               narrator: FMNarrator(),
                                               context: modelContext) { progressText = $0 }

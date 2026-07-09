@@ -14,6 +14,17 @@ enum EpisodeComposer {
         calendar.date(byAdding: .hour, value: -4, to: now)!
     }
 
+    /// 방송일에 촬영분이 없으면 최대 lookback일 전까지 거슬러 올라가 사진 있는 날을 찾는다.
+    /// 전부 없으면 방송일 그대로 반환 → 방송사고 에피소드.
+    static func latestDayWithPhotos(lookback: Int = 2, calendar: Calendar = .current) -> Date {
+        let base = broadcastDay(calendar: calendar)
+        for back in 0...lookback {
+            let candidate = calendar.date(byAdding: .day, value: -back, to: base)!
+            if !PhotoCollector.photos(on: candidate, calendar: calendar).isEmpty { return candidate }
+        }
+        return base
+    }
+
     /// 해당 날짜의 에피소드를 생성해 저장한다. 이미 있으면 지우고 다시 만든다(테스트 편의, 멱등).
     /// onProgress: 단계별 상태 문자열 (UI 표시 + 디버깅용)
     @discardableResult
