@@ -69,36 +69,55 @@ enum EpisodeComposer {
                     geoCache[key] = neighborhood
                 }
             }
-            // 셀카 레퍼런스가 있으면 얼굴 매칭으로 주인공 등장 판별, 없으면 "카메라 뒤" 가정
-            // 스크린샷 속 인물(TV·화면)은 실제 출연진이 아니므로 세지 않는다
-            // ponytail: 캡션 문자열의 "인물 N명" 재파싱 — 캡셔너 구조화 필요해지면 프로토콜 확장
-            var castLabels: [String] = []
             let faceCount = caption.firstMatch(of: /인물 (\d+)명/).flatMap { Int($0.1) } ?? 0
+            // 전면카메라(셀카)는 주인공 등장 신호. 얼굴 있을 때만 EXIF 로드 (풍경 스킵)
+            let selfie = (faceCount > 0 && !photo.isScreenshot)
+                ? await PhotoCollector.isSelfie(assetID: photo.assetID) : false
+
+            // 스크린샷 속 인물(TV·화면)은 실제 출연진이 아니므로 세지 않는다
+            var castLabels: [String] = []
             if faceCount > 0 && !photo.isScreenshot {
-                if FaceMatcher.detectionEnabled, FaceMatcher.hasReference,
-                   FaceMatcher.containsProtagonist(cg) {
+                let protagonistIn = selfie
+                    || (FaceMatcher.detectionEnabled && FaceMatcher.hasReference
+                        && FaceMatcher.containsProtagonist(cg))
+                if protagonistIn {
                     castLabels.append("주인공 본인 등장")
                     if faceCount > 1 { castLabels.append("이름 모를 출연자 \(faceCount - 1)명") }
                 } else {
-                    // 기본: 카메라 뒤 가정 — 프레임 속 인물은 전부 출연진
                     castLabels.append("이름 모를 출연자 \(faceCount)명")
                 }
             }
-            DebugLog.log("[Caption] \(i + 1)/\(photos.count) \(Self.timeText(photo.capturedAt)) → \(caption) | 출연: \(castLabels.joined(separator: ","))")
+
+            // 사진 메타 태그
+            var tags: [String] = []
+            if selfie { tags.append("셀카") }
+            if photo.isFavorite { tags.append("즐겨찾기") }
+            if photo.isLivePhoto { tags.append("라이브") }
+            if photo.isBurst { tags.append("버스트") }
+            if photo.isPortrait { tags.append("인물사진") }
+            if photo.isPanorama { tags.append("파노라마") }
+
+            DebugLog.log("[Caption] \(i + 1)/\(photos.count) \(Self.timeText(photo.capturedAt)) → \(caption) | 출연: \(castLabels.joined(separator: ",")) | 태그: \(tags.joined(separator: ","))")
             items.append(TimelineItem(timeText: Self.timeText(photo.capturedAt),
                                       neighborhood: neighborhood,
                                       caption: caption,
                                       castLabels: castLabels,
-                                      isScreenshot: photo.isScreenshot))
+                                      isScreenshot: photo.isScreenshot,
+                                      tags: tags))
         }
 
         // 2. 프롬프트 → 내레이션
         stage("작가가 대본 집필 중… (온디바이스)")
+        // 오늘의 동선: 연속 중복 제거한 동네 흐름
+        var stops: [String] = []
+        for n in items.compactMap({ $0.neighborhood }) where stops.last != n { stops.append(n) }
+        let journey = stops.count >= 2 ? stops.joined(separator: " → ") : nil
         let number = nextEpisodeNumber(context: context)
         let ctx = DayContext(protagonistName: protagonist,
                              episodeCode: String(format: "S01E%02d", number),
                              dateText: Self.dateText(day),
-                             items: items)
+                             items: items,
+                             journey: journey)
         let draft = try await narrator.generate(EpisodePromptBuilder.build(ctx))
         stage("편집 및 방송 준비")
 

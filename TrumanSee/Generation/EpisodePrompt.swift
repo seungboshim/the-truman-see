@@ -17,6 +17,8 @@ struct TimelineItem {
     let castLabels: [String]
     /// 스크린샷 여부 — 주인공이 찍은 장면이 아니라 '보고 있던 화면'
     var isScreenshot: Bool = false
+    /// 사진 메타 힌트: 셀카/즐겨찾기/라이브/버스트/인물사진/파노라마
+    var tags: [String] = []
 }
 
 /// 하루치 생성 컨텍스트.
@@ -25,6 +27,8 @@ struct DayContext {
     let episodeCode: String     // "S01E03"
     let dateText: String        // "2026년 7월 7일 화요일"
     let items: [TimelineItem]   // 시간순
+    /// 오늘의 동선 요약 (예: "연남동 → 성수동"). 없으면 nil.
+    var journey: String? = nil
 }
 
 /// LLM에 넘길 최종 프롬프트 (엔진에 따라 system=instructions, user=prompt로 매핑).
@@ -68,6 +72,14 @@ enum EpisodePromptBuilder {
       '주인공이 무언가를 보고 있었다'로 다뤄라 (예: 축구 중계를 보다, 메시지를 확인하다, 쇼핑하다).
       (예: 코카콜라 전광판이 담긴 축구 중계 캡처 → "주인공은 소파에 누워 이집트전을 지켜봤다", 결코 "코카콜라 앞에 섰다"가 아니다.)
 
+    [태그 활용]
+    - 셀카: 좀처럼 카메라에 안 잡히던 주인공이 직접 프레임에 들어온 드문 순간. 그 장면에서만 주인공 모습을 묘사해도 된다.
+    - 즐겨찾기: 주인공이 특별히 아낀 장면. 하이라이트로 강조하고 시청률을 끌어올려라.
+    - 라이브/버스트: 순간·움직임을 놓치기 싫었던 조바심.
+    - 인물사진: 누군가를 정성껏 담은 컷 — 그 조연에게 스포트라이트.
+    - 파노라마: 한 프레임에 다 담을 수 없어 눈에 새긴 풍경.
+    - [오늘의 동선]이 있으면 하루의 이동을 여정처럼 엮어라.
+
     [정서 규칙]
     - 사진에 인물이 없다고 주인공이 외롭다고 해석하지 마라. 주인공은 카메라 뒤에 있을 뿐이다.
       '고독', '외로움', '쓸쓸함' 같은 단어와 그 클리셰를 금지한다.
@@ -87,12 +99,14 @@ enum EpisodePromptBuilder {
             let obs = item.caption ?? "(장면 정보 없음)"
             let cast = item.castLabels.isEmpty ? "" : " · 출연: \(item.castLabels.joined(separator: ", "))"
             let kind = item.isScreenshot ? " [📱 화면 캡처]" : ""
-            return "\(i + 1). \(item.timeText)\(loc)\(kind)\(cast)\n   관찰: \(obs)"
+            let tags = item.tags.isEmpty ? "" : " · 태그: \(item.tags.joined(separator: ", "))"
+            return "\(i + 1). \(item.timeText)\(loc)\(kind)\(tags)\(cast)\n   관찰: \(obs)"
         }.joined(separator: "\n")
+        let journeyLine = ctx.journey.map { "\n[오늘의 동선] \($0)" } ?? ""
 
         return """
         [에피소드] \(ctx.episodeCode) — \(ctx.dateText)
-        [주인공] \(ctx.protagonistName)
+        [주인공] \(ctx.protagonistName)\(journeyLine)
 
         [오늘의 관찰 기록 — 시간순]
         \(timeline)

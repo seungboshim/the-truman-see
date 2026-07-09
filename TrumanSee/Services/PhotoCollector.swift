@@ -2,6 +2,7 @@ import Foundation
 import Photos
 import CoreLocation
 import UIKit
+import ImageIO
 
 /// 하루치 사진 한 장의 메타데이터. 원본 이미지는 저장하지 않고 asset 식별자만 들고 다닌다.
 struct DayPhoto: Identifiable, Equatable {
@@ -11,6 +12,12 @@ struct DayPhoto: Identifiable, Equatable {
     let coordinate: CLLocationCoordinate2D?
     /// 스크린샷 여부 (PHAsset.mediaSubtypes). 주인공이 '찍은' 게 아니라 '본' 화면.
     var isScreenshot: Bool = false
+    var isFavorite = false      // 주인공이 아낀 순간 → 하이라이트
+    var isLivePhoto = false
+    var isPortrait = false      // 인물사진 (depth effect)
+    var isPanorama = false
+    var isBurst = false
+    var isSelfie = false        // 전면카메라 (EXIF, best-effort) → 주인공 등장 신호
 
     static func == (lhs: DayPhoto, rhs: DayPhoto) -> Bool { lhs.assetID == rhs.assetID }
 }
@@ -46,12 +53,40 @@ enum PhotoCollector {
         var photos: [DayPhoto] = []
         PHAsset.fetchAssets(with: .image, options: options).enumerateObjects { asset, _, _ in
             guard let created = asset.creationDate else { return }
+            let sub = asset.mediaSubtypes
             photos.append(DayPhoto(assetID: asset.localIdentifier,
                                    capturedAt: created,
                                    coordinate: asset.location?.coordinate,
-                                   isScreenshot: asset.mediaSubtypes.contains(.photoScreenshot)))
+                                   isScreenshot: sub.contains(.photoScreenshot),
+                                   isFavorite: asset.isFavorite,
+                                   isLivePhoto: sub.contains(.photoLive),
+                                   isPortrait: sub.contains(.photoDepthEffect),
+                                   isPanorama: sub.contains(.photoPanorama),
+                                   isBurst: asset.representsBurst))
         }
         return photos
+    }
+
+    /// 전면카메라(셀카) 여부 — EXIF LensModel에 "front" 포함으로 판별 (best-effort).
+    /// ponytail: EXIF용 원본 데이터 로드. 사진 많으면 캡셔닝 로드와 합칠 것.
+    static func isSelfie(assetID: String) async -> Bool {
+        guard let asset = PHAsset.fetchAssets(withLocalIdentifiers: [assetID], options: nil).firstObject
+        else { return false }
+        let opts = PHImageRequestOptions()
+        opts.isNetworkAccessAllowed = true
+        opts.deliveryMode = .fastFormat
+        return await withCheckedContinuation { cont in
+            PHImageManager.default().requestImageDataAndOrientation(for: asset, options: opts) { data, _, _, _ in
+                guard let data,
+                      let src = CGImageSourceCreateWithData(data as CFData, nil),
+                      let props = CGImageSourceCopyPropertiesAtIndex(src, 0, nil) as? [CFString: Any],
+                      let exif = props[kCGImagePropertyExifDictionary] as? [CFString: Any],
+                      let lens = exif[kCGImagePropertyExifLensModel] as? String else {
+                    cont.resume(returning: false); return
+                }
+                cont.resume(returning: lens.localizedCaseInsensitiveContains("front"))
+            }
+        }
     }
 
     /// 하루 경계 [자정, 다음날 자정). 순수 로직 — 테스트 대상.
