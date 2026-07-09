@@ -127,13 +127,14 @@ struct ContentView: View {
                 errorMessage = "카메라(사진첩) 접근이 없어 촬영분을 확보하지 못했습니다. 설정에서 사진 권한을 허용해 주세요. — 제작진"
                 return
             }
-            guard FMNarrator.isAvailable else {
-                errorMessage = "이 기기에서는 온디바이스 작가(Apple Intelligence)를 사용할 수 없습니다. 클라우드 작가는 곧 합류합니다. — 제작진"
+            // 온디바이스(프라이버시) 모드일 때만 FM 가용성 필요. 생생 모드는 클라우드 작가라 불요.
+            if !CaptionerFactory.vividModeEnabled && !FMNarrator.isAvailable {
+                errorMessage = "이 기기에서는 온디바이스 작가(Apple Intelligence)를 사용할 수 없습니다. 생생 모드를 켜면 클라우드 작가로 만들 수 있어요. — 제작진"
                 return
             }
             try await EpisodeComposer.compose(day: EpisodeComposer.latestDayWithPhotos(),
                                               protagonist: protagonistName,
-                                              narrator: FMNarrator(),
+                                              narrator: NarratorFactory.make(),
                                               context: modelContext) { progressText = $0 }
         } catch NarratorError.censored {
             errorMessage = "심의 반려 📺 오늘 촬영분 일부가 방송 심의를 통과하지 못했습니다. 제작진이 심의실에 항의 중입니다. 잠시 후 다시 시도해 주세요. — 제작진"

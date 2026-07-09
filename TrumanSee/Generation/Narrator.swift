@@ -4,9 +4,36 @@ import FoundationModels
 #endif
 
 /// 내레이션 엔진: EpisodePrompt → LLM → EpisodeDraft.
-/// 구현체: FMNarrator(온디바이스, 프라이버시 모드) / 이후 CloudNarrator(프록시 경유 Claude, 화질 모드).
+/// 구현체: FMNarrator(온디바이스, 프라이버시 모드) / NvidiaNarrator(클라우드, 생생 모드).
 protocol Narrator {
     func generate(_ prompt: EpisodePrompt) async throws -> EpisodeDraft
+}
+
+/// 모드 일관성: 생생 모드는 이미 사진을 클라우드로 보냈으므로 내레이션도 강한 클라우드 모델(Gemma)로,
+/// 프라이버시 모드는 아무것도 내보내지 않도록 온디바이스 FM으로. (캡셔너 모드와 동일 기준)
+enum NarratorFactory {
+    static func make() -> Narrator {
+        if CaptionerFactory.vividModeEnabled, let key = Secrets.nvidiaKey {
+            return NvidiaNarrator(apiKey: key)
+        }
+        return FMNarrator()
+    }
+}
+
+/// 생생 모드 내레이터 — NVIDIA Gemma 4 텍스트 완성. 프롬프트 규칙 준수도가 온디바이스 FM보다 높다.
+struct NvidiaNarrator: Narrator {
+    let apiKey: String
+    var model = "google/gemma-4-31b-it"
+
+    func generate(_ prompt: EpisodePrompt) async throws -> EpisodeDraft {
+        let messages: [Any] = [
+            ["role": "system", "content": prompt.system],
+            ["role": "user", "content": prompt.user]
+        ]
+        let content = try await NvidiaClient.chat(apiKey: apiKey, model: model, messages: messages,
+                                                  maxTokens: 1200, temperature: 0.9)
+        return try EpisodeDraft.parse(from: content)
+    }
 }
 
 enum NarratorError: Error {

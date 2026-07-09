@@ -132,7 +132,7 @@ enum EpisodeComposer {
         let items = sources.map(\.item)
 
         // 2. 프롬프트 → 내레이션
-        stage("작가가 대본 집필 중… (온디바이스)")
+        stage(CaptionerFactory.vividModeEnabled ? "작가가 대본 집필 중… (클라우드)" : "작가가 대본 집필 중… (온디바이스)")
         // 오늘의 동선: 연속 중복 제거한 동네 흐름
         var stops: [String] = []
         for n in items.compactMap({ $0.neighborhood }) where stops.last != n { stops.append(n) }
