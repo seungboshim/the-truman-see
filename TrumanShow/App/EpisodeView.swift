@@ -125,17 +125,21 @@ struct PhotoThumbnail: View {
     @State private var image: UIImage?
 
     var body: some View {
-        Group {
-            if let image {
-                Image(uiImage: image).resizable().scaledToFill()
-            } else {
-                Rectangle().fill(.white.opacity(0.06))
-                    .overlay(ProgressView())
+        // overlay 패턴: 이미지의 고유 크기가 레이아웃에 관여하지 못하게 격리
+        // (scaledToFill 이미지가 ScrollView 콘텐츠 폭을 밀어내는 오버플로 방지)
+        Color.clear
+            .background(.white.opacity(0.06))
+            .overlay {
+                if let image {
+                    Image(uiImage: image).resizable().scaledToFill()
+                } else {
+                    ProgressView()
+                }
             }
-        }
-        .task(id: assetID) {
-            image = await PhotoCollector.image(for: assetID,
-                                               targetSize: .init(width: 800, height: 800))
-        }
+            .clipped()
+            .task(id: assetID) {
+                image = await PhotoCollector.image(for: assetID,
+                                                   targetSize: .init(width: 800, height: 800))
+            }
     }
 }

@@ -39,8 +39,15 @@ enum EpisodeComposer {
         }
 
         // 1. 수집 + 캡셔닝
-        let photos = PhotoCollector.photos(on: day)
-        stage("촬영분 \(photos.count)장 확보")
+        let allPhotos = PhotoCollector.photos(on: day)
+        // 비슷한 시간대(10분 내) 연사는 대표컷 1장만, 최대 12장면 (FM 컨텍스트 보호)
+        var photos: [DayPhoto] = []
+        for p in allPhotos {
+            if let last = photos.last, p.capturedAt.timeIntervalSince(last.capturedAt) < 600 { continue }
+            photos.append(p)
+        }
+        if photos.count > 12 { photos = Array(photos.prefix(12)) }
+        stage("촬영분 \(allPhotos.count)장 중 \(photos.count)장면 선별")
         let captioner = CaptionerFactory.make()
         var items: [TimelineItem] = []
         var geoCache: [String: String?] = [:]   // 근접 좌표 재사용 (CLGeocoder 스로틀 방지)
@@ -62,10 +69,17 @@ enum EpisodeComposer {
                     geoCache[key] = neighborhood
                 }
             }
+            // ponytail: 캡션 문자열의 "인물 N명"을 출연진 라벨로 재파싱 — 사진 속 인물을
+            // 주인공으로 오인하는 것을 프롬프트 구조로 차단. 캡셔너 구조화 필요해지면 프로토콜 확장
+            var castLabels: [String] = []
+            if let m = caption.firstMatch(of: /인물 (\d+)명/) {
+                castLabels = ["이름 모를 출연자 \(m.1)명 (주인공 아님)"]
+            }
+            print("[Caption] \(i + 1)/\(photos.count) \(Self.timeText(photo.capturedAt)) → \(caption)")
             items.append(TimelineItem(timeText: Self.timeText(photo.capturedAt),
                                       neighborhood: neighborhood,
                                       caption: caption,
-                                      castLabels: []))  // 얼굴 수는 캡션에 포함. 개별 인물은 v2
+                                      castLabels: castLabels))
         }
 
         // 2. 프롬프트 → 내레이션
