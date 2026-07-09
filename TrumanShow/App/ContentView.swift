@@ -5,6 +5,7 @@ struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Episode.airDate, order: .reverse) private var episodes: [Episode]
     @AppStorage("protagonistName") private var protagonistName = "주인공"
+    @AppStorage("vividMode") private var vividMode = false
     @State private var isGenerating = false
     @State private var progressText = ""
     @State private var errorMessage: String?
@@ -39,6 +40,18 @@ struct ContentView: View {
             .toolbar {
                 if !episodes.isEmpty {
                     ToolbarItem(placement: .primaryAction) { generateButton }
+                }
+                ToolbarItem(placement: .topBarLeading) {
+                    Menu {
+                        Toggle(isOn: $vividMode) {
+                            Label("생생 모드 (클라우드 분석)", systemImage: "sparkles")
+                        }
+                        Text(vividMode
+                             ? "축소 사진이 클라우드로 전송됩니다"
+                             : "사진은 기기 안에서만 분석됩니다")
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
+                    }
                 }
             }
             .task {

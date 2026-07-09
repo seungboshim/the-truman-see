@@ -19,6 +19,8 @@ final class Episode {
     var productionReport: String?
     /// 데이터 결측일 = 방송 사고 에피소드
     var isBroadcastAccident: Bool
+    /// 생생 모드로 생성됨 = 축소 사진이 클라우드로 전송됨 (투명성 화면에서 사실대로 고지)
+    var usedCloudVision: Bool = false
     var createdAt: Date
 
     @Relationship(deleteRule: .cascade, inverse: \EpisodeScene.episode)

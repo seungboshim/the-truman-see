@@ -106,6 +106,7 @@ enum EpisodeComposer {
                               synopsis: draft.synopsis, viewerRating: draft.viewerRating,
                               viewerComments: draft.viewerComments,
                               isBroadcastAccident: items.isEmpty)
+        episode.usedCloudVision = CaptionerFactory.vividModeEnabled
         context.insert(episode)
         for (i, scene) in draft.scenes.enumerated() {
             // 정상 에피소드는 장면=사진 1:1 (프롬프트 계약). 방송사고는 사진 없음.

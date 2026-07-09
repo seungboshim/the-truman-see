@@ -9,6 +9,15 @@ protocol PhotoCaptioner {
 }
 
 enum CaptionerFactory {
-    /// 현 MVP에선 Vision 단일 경로. 생생 모드 옵트인 추가 시 여기서 분기.
-    static func make() -> PhotoCaptioner { VisionCaptioner() }
+    /// 생생 모드(옵트인) + 키 존재 시에만 클라우드. 기본값은 항상 온디바이스 Vision.
+    static var vividModeEnabled: Bool {
+        UserDefaults.standard.bool(forKey: "vividMode") && Secrets.nvidiaKey != nil
+    }
+
+    static func make() -> PhotoCaptioner {
+        if vividModeEnabled, let key = Secrets.nvidiaKey {
+            return NvidiaCaptioner(apiKey: key)
+        }
+        return VisionCaptioner()
+    }
 }

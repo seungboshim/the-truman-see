@@ -105,7 +105,9 @@ struct EpisodeView: View {
                         .font(.caption.monospaced())
                         .foregroundStyle(.secondary)
                 }
-                Text("사진 원본은 기기 밖으로 나가지 않습니다. 제작진(AI)은 위 텍스트만 봤습니다.")
+                Text(episode.usedCloudVision
+                     ? "생생 모드 에피소드입니다. 장면 분석을 위해 축소된 사진이 클라우드로 전송됐고, 위는 그렇게 받은 설명입니다. (기본 모드에선 사진이 기기 밖으로 나가지 않습니다.)"
+                     : "사진 원본은 기기 밖으로 나가지 않습니다. 제작진(AI)은 위 텍스트만 봤습니다.")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
                     .padding(.top, 4)
