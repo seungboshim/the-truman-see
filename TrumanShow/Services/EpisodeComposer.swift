@@ -10,9 +10,13 @@ enum EpisodeComposer {
     enum ComposeError: Error { case photoAccessDenied }
 
     /// 해당 날짜의 에피소드를 생성해 저장한다. 이미 있으면 지우고 다시 만든다(테스트 편의, 멱등).
+    /// onProgress: 단계별 상태 문자열 (UI 표시 + 디버깅용)
     @discardableResult
     static func compose(day: Date = Date(), protagonist: String,
-                        narrator: Narrator, context: ModelContext) async throws -> Episode {
+                        narrator: Narrator, context: ModelContext,
+                        onProgress: @escaping (String) -> Void = { _ in }) async throws -> Episode {
+        func stage(_ msg: String) { print("[Composer] \(msg)"); onProgress(msg) }
+
         guard PhotoCollector.authorizationStatus == .authorized
                 || PhotoCollector.authorizationStatus == .limited else {
             throw ComposeError.photoAccessDenied
@@ -20,17 +24,28 @@ enum EpisodeComposer {
 
         // 1. 수집 + 캡셔닝
         let photos = PhotoCollector.photos(on: day)
+        stage("촬영분 \(photos.count)장 확보")
         let captioner = CaptionerFactory.make()
         var items: [TimelineItem] = []
-        for photo in photos {
+        var geoCache: [String: String?] = [:]   // 근접 좌표 재사용 (CLGeocoder 스로틀 방지)
+        for (i, photo) in photos.enumerated() {
+            stage("장면 분석 중 \(i + 1)/\(photos.count)")
             // 캡셔닝엔 512px이면 충분 — 원본 로드 낭비 방지
             guard let cg = await PhotoCollector.image(for: photo.assetID,
                                                       targetSize: .init(width: 512, height: 512))?.cgImage
-            else { continue }
+            else { stage("장면 \(i + 1) 이미지 로드 실패 — 건너뜀"); continue }
             let caption = (try? await captioner.caption(cg)) ?? "(분석 실패)"
-            let neighborhood: String? = if let coord = photo.coordinate {
-                await NeighborhoodResolver.neighborhood(for: coord)
-            } else { nil }
+            var neighborhood: String? = nil
+            if let coord = photo.coordinate {
+                // ~1km 그리드로 캐시. 같은 동네 사진 수십 장이 지오코딩 1회로 처리됨
+                let key = "\((coord.latitude * 100).rounded()),\((coord.longitude * 100).rounded())"
+                if let cached = geoCache[key] {
+                    neighborhood = cached
+                } else {
+                    neighborhood = await NeighborhoodResolver.neighborhood(for: coord, timeout: 8)
+                    geoCache[key] = neighborhood
+                }
+            }
             items.append(TimelineItem(timeText: Self.timeText(photo.capturedAt),
                                       neighborhood: neighborhood,
                                       caption: caption,
@@ -38,12 +53,14 @@ enum EpisodeComposer {
         }
 
         // 2. 프롬프트 → 내레이션
+        stage("작가가 대본 집필 중… (온디바이스)")
         let number = nextEpisodeNumber(context: context)
         let ctx = DayContext(protagonistName: protagonist,
                              episodeCode: String(format: "S01E%02d", number),
                              dateText: Self.dateText(day),
                              items: items)
         let draft = try await narrator.generate(EpisodePromptBuilder.build(ctx))
+        stage("편집 및 방송 준비")
 
         // 3. 저장 (같은 날 기존 에피소드는 교체)
         let dayStart = Calendar.current.startOfDay(for: day)

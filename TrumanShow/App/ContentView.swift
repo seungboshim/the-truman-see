@@ -6,6 +6,7 @@ struct ContentView: View {
     @Query(sort: \Episode.airDate, order: .reverse) private var episodes: [Episode]
     @AppStorage("protagonistName") private var protagonistName = "주인공"
     @State private var isGenerating = false
+    @State private var progressText = ""
     @State private var errorMessage: String?
 
     var body: some View {
@@ -81,7 +82,12 @@ struct ContentView: View {
             Task { await generate() }
         } label: {
             if isGenerating {
-                ProgressView()
+                HStack(spacing: 8) {
+                    ProgressView()
+                    if !progressText.isEmpty {
+                        Text(progressText).font(.caption).foregroundStyle(.secondary)
+                    }
+                }
             } else {
                 Label("오늘 방송 만들기", systemImage: "record.circle")
             }
@@ -104,7 +110,7 @@ struct ContentView: View {
             }
             try await EpisodeComposer.compose(protagonist: protagonistName,
                                               narrator: FMNarrator(),
-                                              context: modelContext)
+                                              context: modelContext) { progressText = $0 }
         } catch {
             errorMessage = "편집실에서 문제가 발생했습니다: \(error.localizedDescription) — 제작진"
         }
