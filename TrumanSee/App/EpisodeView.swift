@@ -13,6 +13,7 @@ struct EpisodeView: View {
                 if !episode.viewerComments.isEmpty { comments }
                 if let report = episode.productionReport { productionReport(report) }
                 transparency
+                signOff
             }
             .padding()
         }
@@ -94,6 +95,21 @@ struct EpisodeView: View {
             Text("제작 리포트").font(.headline).foregroundStyle(.white)
             Text(report).font(.caption).foregroundStyle(.secondary)
         }
+    }
+
+    /// 방송 마무리 사인오프 — 트루먼쇼 명대사 모티프.
+    private var signOff: some View {
+        VStack(spacing: 4) {
+            Divider().overlay(.white.opacity(0.2))
+            Text("굿모닝, 굿애프터눈, 굿나잇.")
+                .font(.callout.italic())
+            Text("— 제작진 드림")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.top, 16)
+        .foregroundStyle(.white.opacity(0.8))
     }
 
     /// "제작진이 본 것" — 이번 에피소드 생성에 실제 사용된 텍스트 전문 공개.

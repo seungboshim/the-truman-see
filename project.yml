@@ -33,6 +33,10 @@ targets:
         UILaunchScreen: {}
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
+        UIBackgroundModes:
+          - processing            # 밤 자동 생성 (BGProcessingTask)
+        BGTaskSchedulerPermittedIdentifiers:
+          - com.seungboshim.trumansee.nightly
         # iOS purpose strings: 심사 기준에 맞게 건조·사실적으로 작성 (PD 톤 카피는 커스텀 프리퍼미션 화면에서만)
         NSPhotoLibraryUsageDescription: "오늘 촬영한 사진을 분석해 하루를 요약한 에피소드를 만드는 데 사용합니다. 사진 원본은 기기 안에서만 처리되며 외부로 전송되지 않습니다."
         NSLocationWhenInUseUsageDescription: "방문한 장소를 동네 단위로 기록해 하루 요약에 반영하는 데 사용합니다."

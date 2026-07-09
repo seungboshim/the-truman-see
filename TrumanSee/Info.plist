@@ -2,6 +2,10 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>com.seungboshim.trumansee.nightly</string>
+	</array>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
@@ -26,6 +30,10 @@
 	<string>방문한 장소를 동네 단위로 기록해 하루 요약에 반영하는 데 사용합니다.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>오늘 촬영한 사진을 분석해 하루를 요약한 에피소드를 만드는 데 사용합니다. 사진 원본은 기기 안에서만 처리되며 외부로 전송되지 않습니다.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>processing</string>
+	</array>
 	<key>UILaunchScreen</key>
 	<dict/>
 	<key>UISupportedInterfaceOrientations</key>

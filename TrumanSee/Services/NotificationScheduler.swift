@@ -1,26 +1,21 @@
 import Foundation
 import UserNotifications
 
-/// 밤마다 "오늘 에피소드 공개" 로컬 알림.
+/// 로컬 알림. 밤 자동 생성이 끝나면 완료 알림을 쏜다 (블라인드 반복 알림 대신 실제 생성 시점에만).
 enum NotificationScheduler {
-    static let hour = 21, minute = 30   // ponytail: 고정 시각. 설정 화면 생기면 옵션화
+    static func requestAuthorization() async {
+        _ = try? await UNUserNotificationCenter.current()
+            .requestAuthorization(options: [.alert, .sound, .badge])
+    }
 
-    static func scheduleNightly() async {
-        let center = UNUserNotificationCenter.current()
-        guard (try? await center.requestAuthorization(options: [.alert, .sound, .badge])) == true
-        else { return }
-
+    /// 에피소드 생성 완료 알림 — 트루먼쇼 명대사 모티프.
+    static func postEpisodeReady(code: String, title: String) async {
         let content = UNMutableNotificationContent()
-        content.title = "본방 사수 📺"
-        content.body = "오늘 촬영분 편집이 끝났습니다. 새 에피소드가 공개됐어요. — 제작진"
+        content.title = "굿모닝 굿나잇 📺"
+        content.body = "어젯밤 방송이 공개됐습니다. \(code) 〈\(title)〉 — 제작진"
         content.sound = .default
-
-        var date = DateComponents()
-        date.hour = hour; date.minute = minute
-        let request = UNNotificationRequest(
-            identifier: "nightly-episode",
-            content: content,
-            trigger: UNCalendarNotificationTrigger(dateMatching: date, repeats: true))
-        try? await center.add(request)   // 같은 id 재등록 = 갱신
+        // trigger nil = 즉시 전달 (BG 태스크가 밤에 실행되므로 그때 도착)
+        let request = UNNotificationRequest(identifier: "episode-\(code)", content: content, trigger: nil)
+        try? await UNUserNotificationCenter.current().add(request)
     }
 }

@@ -138,7 +138,8 @@ struct OnboardingView: View {
                 Task {
                     // 거절해도 진행 — 결측은 방송사고 에피소드로 소화 (권한 거절 대응)
                     await PhotoCollector.requestAuthorization()
-                    await NotificationScheduler.scheduleNightly()
+                    await NotificationScheduler.requestAuthorization()
+                    NightlyEpisodeTask.schedule()
                     step = .splash
                 }
             } label: {
@@ -148,7 +149,8 @@ struct OnboardingView: View {
 
             Button("나중에 (오늘은 촬영 없이)") {
                 Task {
-                    await NotificationScheduler.scheduleNightly()
+                    await NotificationScheduler.requestAuthorization()
+                    NightlyEpisodeTask.schedule()
                     step = .splash
                 }
             }
