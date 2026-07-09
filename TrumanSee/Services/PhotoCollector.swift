@@ -67,11 +67,15 @@ enum PhotoCollector {
         return photos
     }
 
-    /// 전면카메라(셀카) 여부 — EXIF LensModel에 "front" 포함으로 판별 (best-effort).
+    /// EXIF에서 뽑는 신호. best-effort.
+    struct ExifSignals { var isSelfie = false; var isCameraOriginal = false }
+
+    /// EXIF 판별 — 전면카메라(셀카) + 카메라 원본 여부.
+    /// 카메라 원본은 촬영 기기 Make를 남긴다. 카톡/다운로드 이미지는 재인코딩되며 대개 제거됨.
     /// ponytail: EXIF용 원본 데이터 로드. 사진 많으면 캡셔닝 로드와 합칠 것.
-    static func isSelfie(assetID: String) async -> Bool {
+    static func exifSignals(assetID: String) async -> ExifSignals {
         guard let asset = PHAsset.fetchAssets(withLocalIdentifiers: [assetID], options: nil).firstObject
-        else { return false }
+        else { return ExifSignals() }
         let opts = PHImageRequestOptions()
         opts.isNetworkAccessAllowed = true
         opts.deliveryMode = .fastFormat
@@ -79,12 +83,16 @@ enum PhotoCollector {
             PHImageManager.default().requestImageDataAndOrientation(for: asset, options: opts) { data, _, _, _ in
                 guard let data,
                       let src = CGImageSourceCreateWithData(data as CFData, nil),
-                      let props = CGImageSourceCopyPropertiesAtIndex(src, 0, nil) as? [CFString: Any],
-                      let exif = props[kCGImagePropertyExifDictionary] as? [CFString: Any],
-                      let lens = exif[kCGImagePropertyExifLensModel] as? String else {
-                    cont.resume(returning: false); return
+                      let props = CGImageSourceCopyPropertiesAtIndex(src, 0, nil) as? [CFString: Any] else {
+                    cont.resume(returning: ExifSignals()); return
                 }
-                cont.resume(returning: lens.localizedCaseInsensitiveContains("front"))
+                let exif = props[kCGImagePropertyExifDictionary] as? [CFString: Any]
+                let tiff = props[kCGImagePropertyTIFFDictionary] as? [CFString: Any]
+                let lens = (exif?[kCGImagePropertyExifLensModel] as? String) ?? ""
+                let make = (tiff?[kCGImagePropertyTIFFMake] as? String) ?? ""
+                cont.resume(returning: ExifSignals(
+                    isSelfie: lens.localizedCaseInsensitiveContains("front"),
+                    isCameraOriginal: !make.isEmpty))
             }
         }
     }

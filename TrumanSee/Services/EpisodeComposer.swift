@@ -78,9 +78,11 @@ enum EpisodeComposer {
                 }
             }
             let faceCount = caption.firstMatch(of: /인물 (\d+)명/).flatMap { Int($0.1) } ?? 0
-            // 전면카메라(셀카)는 주인공 등장 신호. 얼굴 있을 때만 EXIF 로드 (풍경 스킵)
-            let selfie = (faceCount > 0 && !photo.isScreenshot)
-                ? await PhotoCollector.isSelfie(assetID: photo.assetID) : false
+            // EXIF: 셀카(전면카메라) + 카메라 원본 여부 (스크린샷은 카메라 정보 없어 스킵)
+            let exif = photo.isScreenshot
+                ? PhotoCollector.ExifSignals() : await PhotoCollector.exifSignals(assetID: photo.assetID)
+            let selfie = exif.isSelfie && faceCount > 0
+            let received = !photo.isScreenshot && !exif.isCameraOriginal   // 카톡/다운로드 등 받은 이미지
 
             // 스크린샷 속 인물(TV·화면)은 실제 출연진이 아니므로 세지 않는다
             var castLabels: [String] = []
@@ -99,6 +101,7 @@ enum EpisodeComposer {
             // 사진 메타 태그
             var tags: [String] = []
             if selfie { tags.append("셀카") }
+            if received { tags.append("받은사진") }
             if photo.isFavorite { tags.append("즐겨찾기") }
             if photo.isLivePhoto { tags.append("라이브") }
             if photo.isBurst { tags.append("버스트") }

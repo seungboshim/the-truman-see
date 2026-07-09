@@ -12,7 +12,7 @@ struct OnboardingView: View {
     @State private var selfieError: String?
     @FocusState private var nameFocused: Bool
 
-    enum Step { case casting, selfie, cameraContract }
+    enum Step { case casting, selfie, cameraContract, splash }
 
     var body: some View {
         VStack(spacing: 24) {
@@ -22,6 +22,7 @@ struct OnboardingView: View {
                 case .casting: casting
                 case .selfie: selfie
                 case .cameraContract: cameraContract
+                case .splash: splash
                 }
             }
             .transition(.push(from: .trailing))
@@ -138,7 +139,7 @@ struct OnboardingView: View {
                     // 거절해도 진행 — 결측은 방송사고 에피소드로 소화 (권한 거절 대응)
                     await PhotoCollector.requestAuthorization()
                     await NotificationScheduler.scheduleNightly()
-                    onboarded = true
+                    step = .splash
                 }
             } label: {
                 Text("카메라 켜기").frame(maxWidth: .infinity)
@@ -148,11 +149,35 @@ struct OnboardingView: View {
             Button("나중에 (오늘은 촬영 없이)") {
                 Task {
                     await NotificationScheduler.scheduleNightly()
-                    onboarded = true
+                    step = .splash
                 }
             }
             .font(.footnote)
             .foregroundStyle(.secondary)
+        }
+        .foregroundStyle(.white)
+    }
+
+    // MARK: 4. 방송 시작 스플래시 (트루먼쇼 명대사)
+
+    private var splash: some View {
+        VStack(spacing: 20) {
+            Text("🎬")
+                .font(.system(size: 60))
+            Text("이제부터\n\(protagonistName)님의 삶은\n드라마가 됩니다.")
+                .font(.largeTitle.bold())
+                .multilineTextAlignment(.center)
+            Text("굿모닝.\n그리고 혹시 못 볼까 봐 미리 —\n굿애프터눈, 굿나잇.")
+                .font(.title3)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+            Button {
+                onboarded = true
+            } label: {
+                Text("방송 시작").frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .padding(.top, 12)
         }
         .foregroundStyle(.white)
     }
